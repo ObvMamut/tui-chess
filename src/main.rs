@@ -760,163 +760,317 @@ fn move_piece(se: &mut Game) {
     if valid(command.clone()) {
         let (og_r, og_c, n_r, n_c) = parse_cmd(command);
         if can_move(se, og_r, og_c, n_r, n_c) {
-            let mut old_board = se.board;
-            let og = se.board[og_r as usize][og_c as usize];
-            let piece = se.board[n_r as usize][n_c as usize];
+            if se.mode == Modes::PvP {
+                let mut old_board = se.board;
+                let og = se.board[og_r as usize][og_c as usize];
+                let piece = se.board[n_r as usize][n_c as usize];
 
-            //Black Rochades
-            if se.board[og_r as usize][og_c as usize] == 5 && se.board[n_r as usize][n_c as usize] == 1 {
-                match n_c {
-                    0 => {
-                        se.board[0][4] = 1;
-                        se.board[0][0] = 5;
-                    }
-                    7 => {
-                        se.board[0][4] = 0;
-                        se.board[0][7] = 0;
-                        se.board[0][5] = 1;
-                        se.board[0][6] = 5;
-                    }
-                    _ => {}
-                }
-            } else if se.board[og_r as usize][og_c as usize] == 11 && se.board[n_r as usize][n_c as usize] == 7 {
-                match n_c {
-                    0 => {
-                        se.board[7][4] = 7;
-                        se.board[7][0] = 11;
-                    }
-                    7 => {
-                        se.board[7][4] = 0;
-                        se.board[7][7] = 0;
-                        se.board[7][5] = 7;
-                        se.board[7][6] = 11;
-                    }
-                    _ => {}
-                }
-
-            } else {
-                se.board[n_r as usize][n_c as usize] = og;
-                se.board[og_r as usize][og_c as usize] = 0;
-            }
-
-            if check(se, 5) != true && check(se, 11) != true {
-                // so there is no check on the black king as no check on the white king
-
-                se.game_state = GameState::Playing;
-                se.move_info = MoveInfo::Valid
-            }
-
-            if se.round == Round::White {
-                if check(se, 11) {
-
-                    se.move_info = MoveInfo::WhiteCheck;
-                    if old_board[og_r as usize][og_c as usize] == 11 && old_board[n_r as usize][n_c as usize] == 7 {
-                        match n_c {
-                            0 => {
-                                old_board[7][4] = 11;
-                                old_board[7][0] = 7;
-                            }
-                            7 => {
-                                old_board[7][4] = 11;
-                                old_board[7][7] = 7;
-                                old_board[7][5] = 0;
-                                old_board[7][6] = 0;
-                            }
-                            _ => {}
+                //Black Rochades
+                if se.board[og_r as usize][og_c as usize] == 5 && se.board[n_r as usize][n_c as usize] == 1 {
+                    match n_c {
+                        0 => {
+                            se.board[0][4] = 1;
+                            se.board[0][0] = 5;
                         }
-                        se.game_state = GameState::Playing;
-                    }
-                    se.round = Round::Black;
-                    se.board = old_board;
-                }
-            } else if se.round == Round::Black {
-                if check(se, 5) {
-                    se.move_info = MoveInfo::BlackCheck;
-                    if old_board[og_r as usize][og_c as usize] == 5 && old_board[n_r as usize][n_c as usize] == 1 {
-                        match n_c {
-                            0 => {
-                                old_board[0][0] = 1;
-                                old_board[0][4] = 5;
-                            }
-                            7 => {
-                                old_board[0][4] = 5;
-                                old_board[0][7] = 1;
-                                old_board[0][5] = 0;
-                                old_board[0][6] = 0;
-                            }
-                            _ => {}
+                        7 => {
+                            se.board[0][4] = 0;
+                            se.board[0][7] = 0;
+                            se.board[0][5] = 1;
+                            se.board[0][6] = 5;
                         }
-                        se.game_state = GameState::Playing;
+                        _ => {}
                     }
-                    se.round = Round::White;
-                    se.board = old_board;
-                }
-            }
-
-            if old_board != se.board {
-                match old_board[og_r as usize][og_c as usize] {
-                    1 | 2 | 3 | 4 | 5 | 6 => {
-                        match old_board[n_r as usize][n_c as usize] {
-                            7 | 8 | 9 | 10 | 11 | 12 => {
-                                se.black_captures.push(old_board[n_r as usize][n_c as usize] as i32);
-                            }
-                            _ => {}
+                } else if se.board[og_r as usize][og_c as usize] == 11 && se.board[n_r as usize][n_c as usize] == 7 {
+                    match n_c {
+                        0 => {
+                            se.board[7][4] = 7;
+                            se.board[7][0] = 11;
                         }
-                    }
-                    7 | 8 | 9 | 10 | 11 | 12 => {
-                        match old_board[n_r as usize][n_c as usize] {
-                            1 | 2 | 3 | 4 | 5 | 6 => {
-                                se.white_captures.push(old_board[n_r as usize][n_c as usize] as i32);
-                            }
-                            _ => {}
+                        7 => {
+                            se.board[7][4] = 0;
+                            se.board[7][7] = 0;
+                            se.board[7][5] = 7;
+                            se.board[7][6] = 11;
                         }
+                        _ => {}
                     }
-                    _ => {}
-                }
-            }
 
-            if check(se, 5) != true && check(se, 11) != true {
-                // so there is no check on the black king as no check on the white king
-
-                se.game_state = GameState::Playing
-            } else if check(se, 5) {
-                if mate(se, 5) {
-                    se.game_state = GameState::WhiteWon;
+                } else {
+                    se.board[n_r as usize][n_c as usize] = og;
+                    se.board[og_r as usize][og_c as usize] = 0;
                 }
-            } else if check(se, 11) {
+
+                if check(se, 5) != true && check(se, 11) != true {
+                    // so there is no check on the black king as no check on the white king
+
+                    se.game_state = GameState::Playing;
+                    se.move_info = MoveInfo::Valid
+                }
+
+                if se.round == Round::White {
+                    if check(se, 11) {
+
+                        se.move_info = MoveInfo::WhiteCheck;
+                        if old_board[og_r as usize][og_c as usize] == 11 && old_board[n_r as usize][n_c as usize] == 7 {
+                            match n_c {
+                                0 => {
+                                    old_board[7][4] = 11;
+                                    old_board[7][0] = 7;
+                                }
+                                7 => {
+                                    old_board[7][4] = 11;
+                                    old_board[7][7] = 7;
+                                    old_board[7][5] = 0;
+                                    old_board[7][6] = 0;
+                                }
+                                _ => {}
+                            }
+                            se.game_state = GameState::Playing;
+                        }
+                        se.round = Round::Black;
+                        se.board = old_board;
+                    }
+                } else if se.round == Round::Black {
+                    if check(se, 5) {
+                        se.move_info = MoveInfo::BlackCheck;
+                        if old_board[og_r as usize][og_c as usize] == 5 && old_board[n_r as usize][n_c as usize] == 1 {
+                            match n_c {
+                                0 => {
+                                    old_board[0][0] = 1;
+                                    old_board[0][4] = 5;
+                                }
+                                7 => {
+                                    old_board[0][4] = 5;
+                                    old_board[0][7] = 1;
+                                    old_board[0][5] = 0;
+                                    old_board[0][6] = 0;
+                                }
+                                _ => {}
+                            }
+                            se.game_state = GameState::Playing;
+                        }
+                        se.round = Round::White;
+                        se.board = old_board;
+                    }
+                }
+
+                if old_board != se.board {
+                    match old_board[og_r as usize][og_c as usize] {
+                        1 | 2 | 3 | 4 | 5 | 6 => {
+                            match old_board[n_r as usize][n_c as usize] {
+                                7 | 8 | 9 | 10 | 11 | 12 => {
+                                    se.black_captures.push(old_board[n_r as usize][n_c as usize] as i32);
+                                }
+                                _ => {}
+                            }
+                        }
+                        7 | 8 | 9 | 10 | 11 | 12 => {
+                            match old_board[n_r as usize][n_c as usize] {
+                                1 | 2 | 3 | 4 | 5 | 6 => {
+                                    se.white_captures.push(old_board[n_r as usize][n_c as usize] as i32);
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                if check(se, 5) != true && check(se, 11) != true {
+                    // so there is no check on the black king as no check on the white king
+
+                    se.game_state = GameState::Playing
+                } else if check(se, 5) {
+                    if mate(se, 5) {
+                        se.game_state = GameState::WhiteWon;
+                    }
+                } else if check(se, 11) {
+                        if mate(se, 11) {
+                            se.game_state = GameState::BlackWon;
+                        }
+                }
+
+
+                if se.round == Round::White {
+                    se.round = Round::Black
+                } else if se.round == Round::Black {
+                    se.round = Round::White
+                }
+
+
+                if se.board != old_board {
+                    if se.board[0][0] != 1 {
+                        se.lbr_moved = true;
+                    } else if se.board[0][7] != 1 {
+                        se.rbr_moved = true;
+                    } else if se.board[7][0] != 7 {
+                        se.lwr_moved = true;
+                    } else if se.board[7][7] != 7 {
+                        se.rwr_moved = true;
+                    }
+                }
+
+
+                if se.debug == true {
+                    write!(se.stdout,
+                           "{}{:?}",
+                           termion::cursor::Goto(10, 50),
+                           se.board)
+                        .unwrap();
+
+                }
+            } else if se.mode == Modes::AI {
+                let mut old_board = se.board;
+                let og = se.board[og_r as usize][og_c as usize];
+                let piece = se.board[n_r as usize][n_c as usize];
+
+                //Black Rochades
+                if se.board[og_r as usize][og_c as usize] == 5 && se.board[n_r as usize][n_c as usize] == 1 {
+                    match n_c {
+                        0 => {
+                            se.board[0][4] = 1;
+                            se.board[0][0] = 5;
+                        }
+                        7 => {
+                            se.board[0][4] = 0;
+                            se.board[0][7] = 0;
+                            se.board[0][5] = 1;
+                            se.board[0][6] = 5;
+                        }
+                        _ => {}
+                    }
+                } else if se.board[og_r as usize][og_c as usize] == 11 && se.board[n_r as usize][n_c as usize] == 7 {
+                    match n_c {
+                        0 => {
+                            se.board[7][4] = 7;
+                            se.board[7][0] = 11;
+                        }
+                        7 => {
+                            se.board[7][4] = 0;
+                            se.board[7][7] = 0;
+                            se.board[7][5] = 7;
+                            se.board[7][6] = 11;
+                        }
+                        _ => {}
+                    }
+
+                } else {
+                    se.board[n_r as usize][n_c as usize] = og;
+                    se.board[og_r as usize][og_c as usize] = 0;
+                }
+
+                if check(se, 5) != true && check(se, 11) != true {
+                    // so there is no check on the black king as no check on the white king
+
+                    se.game_state = GameState::Playing;
+                    se.move_info = MoveInfo::Valid
+                }
+
+                if se.round == Round::White {
+                    if check(se, 11) {
+
+                        se.move_info = MoveInfo::WhiteCheck;
+                        if old_board[og_r as usize][og_c as usize] == 11 && old_board[n_r as usize][n_c as usize] == 7 {
+                            match n_c {
+                                0 => {
+                                    old_board[7][4] = 11;
+                                    old_board[7][0] = 7;
+                                }
+                                7 => {
+                                    old_board[7][4] = 11;
+                                    old_board[7][7] = 7;
+                                    old_board[7][5] = 0;
+                                    old_board[7][6] = 0;
+                                }
+                                _ => {}
+                            }
+                            se.game_state = GameState::Playing;
+                        }
+                        se.round = Round::Black;
+                        se.board = old_board;
+                    }
+                } else if se.round == Round::Black {
+                    if check(se, 5) {
+                        se.move_info = MoveInfo::BlackCheck;
+                        if old_board[og_r as usize][og_c as usize] == 5 && old_board[n_r as usize][n_c as usize] == 1 {
+                            match n_c {
+                                0 => {
+                                    old_board[0][0] = 1;
+                                    old_board[0][4] = 5;
+                                }
+                                7 => {
+                                    old_board[0][4] = 5;
+                                    old_board[0][7] = 1;
+                                    old_board[0][5] = 0;
+                                    old_board[0][6] = 0;
+                                }
+                                _ => {}
+                            }
+                            se.game_state = GameState::Playing;
+                        }
+                        se.round = Round::White;
+                        se.board = old_board;
+                    }
+                }
+
+                if old_board != se.board {
+                    match old_board[og_r as usize][og_c as usize] {
+                        1 | 2 | 3 | 4 | 5 | 6 => {
+                            match old_board[n_r as usize][n_c as usize] {
+                                7 | 8 | 9 | 10 | 11 | 12 => {
+                                    se.black_captures.push(old_board[n_r as usize][n_c as usize] as i32);
+                                }
+                                _ => {}
+                            }
+                        }
+                        7 | 8 | 9 | 10 | 11 | 12 => {
+                            match old_board[n_r as usize][n_c as usize] {
+                                1 | 2 | 3 | 4 | 5 | 6 => {
+                                    se.white_captures.push(old_board[n_r as usize][n_c as usize] as i32);
+                                }
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+
+                if check(se, 5) != true && check(se, 11) != true {
+                    // so there is no check on the black king as no check on the white king
+
+                    se.game_state = GameState::Playing
+                } else if check(se, 5) {
+                    if mate(se, 5) {
+                        se.game_state = GameState::WhiteWon;
+                    }
+                } else if check(se, 11) {
                     if mate(se, 11) {
                         se.game_state = GameState::BlackWon;
                     }
-            }
-
-
-            if se.round == Round::White {
-                se.round = Round::Black
-            } else if se.round == Round::Black {
-                se.round = Round::White
-            }
-
-
-            if se.board != old_board {
-                if se.board[0][0] != 1 {
-                    se.lbr_moved = true;
-                } else if se.board[0][7] != 1 {
-                    se.rbr_moved = true;
-                } else if se.board[7][0] != 7 {
-                    se.lwr_moved = true;
-                } else if se.board[7][7] != 7 {
-                    se.rwr_moved = true;
                 }
-            }
 
 
-            if se.debug == true {
-                write!(se.stdout,
-                       "{}{:?}",
-                       termion::cursor::Goto(10, 50),
-                       se.board)
-                    .unwrap();
+                if se.board != old_board {
+                    if se.board[0][0] != 1 {
+                        se.lbr_moved = true;
+                    } else if se.board[0][7] != 1 {
+                        se.rbr_moved = true;
+                    } else if se.board[7][0] != 7 {
+                        se.lwr_moved = true;
+                    } else if se.board[7][7] != 7 {
+                        se.rwr_moved = true;
+                    }
+                }
 
+
+                if se.debug == true {
+                    write!(se.stdout,
+                           "{}{:?}",
+                           termion::cursor::Goto(10, 50),
+                           se.board)
+                        .unwrap();
+
+                }
             }
 
         } else {
