@@ -17,11 +17,10 @@ use std::task::ready;
 use std::thread::current;
 use termion::async_stdin;
 use crate::GameState::{BlackCheck, Playing, WhiteCheck};
+use crate::Modes::PvP;
 use crate::Round::White;
 
 mod graphics {
-    // pub const INFO_BOARD_TOP: &'static str = "╔═════════════════╗";
-    // pub const INFO_BOARD_BOTTOM: &'static str = "╚═════════════════╝";
     pub const COORDINATES_X: &'static str = "0    1    2    3    4    5    6    7";
     pub const SEPARATOR_VERTICAL: &'static str = "║";
     pub const SEPARATOR_TOP: &'static str = "╔═══╗╔═══╗╔═══╗╔═══╗╔═══╗╔═══╗╔═══╗╔═══╗";
@@ -34,11 +33,12 @@ mod graphics {
         "║───────CHESS - Mamut──────────║",
         "║──────────────────────────────║",
         "║ h ┆ help                     ║",
-        "║ o ┆ switch modes             ║",
+        "║ o ┆ mode screen              ║",
         "║ r ┆ restart / new game       ║",
         "║ m ┆ move                     ║",
         "║ q ┆ quit                     ║",
         "║ d ┆ debug                    ║",
+        "║ n ┆ switch modes             ║",
         "╚═══╧══════════════════════════╝"
     ];
     pub const HELP_SCREEN: &'static [&'static str] = &[
@@ -54,6 +54,12 @@ mod graphics {
 }
 
 static mut GAME_STARTED: bool = false;
+
+#[derive(PartialEq)]
+enum Modes {
+    AI,
+    PvP,
+}
 
 #[derive(PartialEq)]
 enum MoveInfo {
@@ -96,6 +102,9 @@ struct Game {
     white_captures: Vec<i32>,
     black_captures: Vec<i32>,
     move_info: MoveInfo,
+    mode: Modes,
+    game_started: bool,
+    mode_screen: bool,
 }
 
 fn draw(x: i32, y: i32, s: String) {
@@ -152,12 +161,6 @@ fn help_screen(se: &mut Game) {
 
     se.stdout.flush().unwrap();
 
-    write!(se.stdout,
-           "{}",
-           termion::clear::All)
-        .unwrap();
-    se.stdout.flush().unwrap();
-
     for x in graphics::HELP_SCREEN {
         write!(se.stdout, "{}{}{}",
                termion::cursor::Goto(20, array_counter),
@@ -176,7 +179,52 @@ fn board_to_fen(se: &mut Game) -> &str {
 
     return board
 }
+fn modes(se: &mut Game) {
 
+    se.mode_screen = true;
+
+    let mut mode_screen = [
+        "╔════════════════════════════════════════╗",
+        "║─────────SWITCH MODES───────────────────║",
+        "║────────────────────────────────────────║",
+        "║ Player vs. Player          ┆           ║",
+        "║ Player vs. AI  (Stockfish) ┆           ║",
+        "╚════════════════════════════════════════╝"
+    ];
+
+    write!(se.stdout,
+           "{}{}{}",
+           termion::clear::All,
+           termion::cursor::Goto(1, 1),
+           termion::cursor::Hide)
+        .unwrap();
+
+
+    let mut array_counter = 20;
+
+    se.stdout.flush().unwrap();
+
+
+    for x in mode_screen {
+        write!(se.stdout, "{}{}{}",
+               termion::cursor::Goto(20, array_counter),
+               x,
+               termion::cursor::Hide).unwrap();
+        se.stdout.flush().unwrap();
+        array_counter += 1
+
+    }
+
+    match se.mode {
+        Modes::PvP => {
+            draw(51, 23, "(current)".to_string());
+        }
+        Modes::AI => {
+            draw(51, 24, "(current)".to_string());
+        }
+        _ => {}
+    }
+}
 //fn fen_to_board(se: &mut Game, fen: &str) -> [[usize;8];8] {
 //    let mut board: [[usize;8];8];
 //    return board
@@ -498,7 +546,7 @@ fn end_screen(se: &mut Game) {
 }
 fn game(se: &mut Game) {
 
-    unsafe{GAME_STARTED = true};
+    se.game_started = true;
 
     game_setup(se);
 }
@@ -581,7 +629,6 @@ fn info_board(se: &mut Game) {
         }
         _ => {},
     }
-
     match se.round {
 
         Round::White => {
@@ -604,7 +651,6 @@ fn info_board(se: &mut Game) {
         _ => {}
 
     }
-
     match se.debug {
         true => {
             write!(se.stdout,
@@ -624,7 +670,6 @@ fn info_board(se: &mut Game) {
         },
         _ => {}
     }
-
     match se.move_info {
         MoveInfo::Null => {
             write!(se.stdout,
@@ -672,6 +717,25 @@ fn info_board(se: &mut Game) {
                    "protect the white king")
                 .unwrap();
 
+        }
+        _ => {}
+    }
+    match se.mode {
+        Modes::PvP => {
+            write!(se.stdout,
+                   "{}{}{}",
+                   termion::cursor::Goto(info_board_x as u16 + 8, info_board_y as u16 + 6),
+                   termion::color::Fg(termion::color::White),
+                   "Player vs. Player")
+                .unwrap();
+        }
+        Modes::AI => {
+            write!(se.stdout,
+                   "{}{}{}",
+                   termion::cursor::Goto(info_board_x as u16 + 8, info_board_y as u16 + 6),
+                   termion::color::Fg(termion::color::White),
+                   "Player vs. AI")
+                .unwrap();
         }
         _ => {}
     }
@@ -1228,7 +1292,6 @@ fn check(se: &mut Game, k: i32) -> bool {
     match k {
         5 => {
             if moves.contains(&bk) {
-                draw(10, 17, "BLACK KING IN DANGER COORD OF WHITE PIECES".to_string());
                 se.game_state = BlackCheck;
                 return true
             }
@@ -1236,7 +1299,6 @@ fn check(se: &mut Game, k: i32) -> bool {
         }
         11 => {
             if moves.contains(&wk) {
-                draw(10, 17, "WHITE KING IN DANGER COORD OF BLACK PIECES".to_string());
                 se.game_state = WhiteCheck;
                 return true
             }
@@ -1813,27 +1875,47 @@ fn init(se: &mut Game) {
             Key::Char('q') => break,
             Key::Char('r') => game(se),
             Key::Char('h') => {
-                if !unsafe { GAME_STARTED } {
+                if se.game_started == false {
                     help_screen(se)
                 }
             },
             Key::Char('s') => {
-                if !unsafe { GAME_STARTED } {
+                if se.game_started == false {
                     start_screen(se)
                 }
             },
             Key::Char('m') => {
-                if unsafe { GAME_STARTED } {
+                if se.game_started {
                     move_piece(se)
                 }
             },
             Key::Char('d') => {
-                if se.debug == true {
-                    se.debug = false;
-                    info_board(se);
-                } else if se.debug == false {
-                    se.debug = true;
-                    info_board(se);
+                if se.game_started == true {
+                    if se.debug == true {
+                        se.debug = false;
+                        info_board(se);
+                    } else if se.debug == false {
+                        se.debug = true;
+                        info_board(se);
+                    }
+                }
+            }
+            Key::Char('o') => {
+                if se.game_started == false {
+                    modes(se);
+                }
+            }
+            Key::Char('n') => {
+                if se.mode_screen == true {
+                    if se.game_started == false {
+                        if se.mode == Modes::PvP {
+                            se.mode = Modes::AI;
+                            modes(se);
+                        } else if se.mode == Modes::AI {
+                            se.mode = Modes::PvP;
+                            modes(se);
+                        }
+                    }
                 }
             }
             _ => {}
@@ -1871,6 +1953,9 @@ fn main() {
         white_captures: vec![],
         black_captures: vec![],
         move_info: MoveInfo::Null,
+        mode: Modes::PvP,
+        game_started: false,
+        mode_screen: false,
     };
 
 
@@ -1879,3 +1964,4 @@ fn main() {
 }
 
 //TODO: AI
+//TODO: Draws/Stalemates
