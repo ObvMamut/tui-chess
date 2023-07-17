@@ -10,6 +10,7 @@ libgo = "0.4.0"
 #liner = "0.4.4"
 rand = "0.8.5"
 rayon = "1.7.0"
+run_script = "0.10.1"
 termion = "2.0.1"
 
 [dependencies.redox_liner]

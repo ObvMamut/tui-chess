@@ -16,9 +16,7 @@ use std::io::Read;
 use std::task::ready;
 use std::thread::current;
 use termion::async_stdin;
-use crate::GameState::{BlackCheck, Playing, WhiteCheck};
-use crate::Modes::PvP;
-use crate::Round::White;
+use run_script::ScriptOptions;
 
 mod graphics {
     pub const COORDINATES_X: &'static str = "0    1    2    3    4    5    6    7";
@@ -52,8 +50,6 @@ mod graphics {
         "╚═══════════════════════════════════════════════════════════════════╝"
     ];
 }
-
-static mut GAME_STARTED: bool = false;
 
 #[derive(PartialEq)]
 enum Modes {
@@ -174,11 +170,6 @@ fn help_screen(se: &mut Game) {
 fn default_setup(se: &mut Game) {
     start_screen(se);
 }
-fn board_to_fen(se: &mut Game) -> &str {
-    let mut board: &str = "";
-
-    return board
-}
 fn modes(se: &mut Game) {
 
     se.mode_screen = true;
@@ -225,11 +216,6 @@ fn modes(se: &mut Game) {
         _ => {}
     }
 }
-//fn fen_to_board(se: &mut Game, fen: &str) -> [[usize;8];8] {
-//    let mut board: [[usize;8];8];
-//    return board
-//}
-
 fn game_setup(se: &mut Game) {
 
     write!(se.stdout,
@@ -1446,14 +1432,14 @@ fn check(se: &mut Game, k: i32) -> bool {
     match k {
         5 => {
             if moves.contains(&bk) {
-                se.game_state = BlackCheck;
+                se.game_state = GameState::BlackCheck;
                 return true
             }
 
         }
         11 => {
             if moves.contains(&wk) {
-                se.game_state = WhiteCheck;
+                se.game_state = GameState::WhiteCheck;
                 return true
             }
         }
@@ -2000,6 +1986,35 @@ fn mate(se: &mut Game, k: i32) -> bool {
 
     return true
 }
+fn get_best_move(fen_board: &str) -> &str {
+    let mut best_move: &str = "0";
+    let options = ScriptOptions::new();
+
+    let args = vec![];
+    let bo = fen_board;
+
+    let cmd = format!(r#"
+         startpos={}
+         stockfish << EOF
+         uci
+         position $startpos
+         go movetime 6000
+         ucinewgame EOF
+         "#, bo);
+
+    // run the script and get the script execution output
+    let (code, output, error) = run_script::run(
+        &cmd as &str,
+        &args,
+        &options,
+    )
+        .unwrap();
+
+    println!("{}", output);
+
+
+    return best_move
+}
 fn init(se: &mut Game) {
 
     let stdin = stdin();
@@ -2095,7 +2110,7 @@ fn main() {
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [12, 12, 12, 12, 12, 12, 12, 12],
                 [7, 8, 9, 10, 11, 9, 8, 7]],
-        game_state: Playing,
+        game_state: GameState::Playing,
         round: Round::White,
         debug: false,
         wk_moved: false,
@@ -2113,7 +2128,7 @@ fn main() {
     };
 
 
-
+    get_best_move("'fen rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2'");
     init(&mut game)
 }
 
