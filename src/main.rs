@@ -803,6 +803,16 @@ fn move_piece(se: &mut Game) {
 
                     se.move_count += 0.5;
 
+                    if old_board[og_r as usize][og_c as usize] == 6 {
+                        if promoting(n_c as i32, 6) {
+                            promoting_screen(se);
+                        }
+                    } else if old_board[og_r as usize][og_c as usize] == 12 {
+                        if promoting(n_c as i32, 12) {
+                            promoting_screen(se);
+                        }
+                    }
+
                 }
 
                 if se.round == Round::White {
@@ -966,6 +976,8 @@ fn move_piece(se: &mut Game) {
                     }
 
                     se.move_count += 0.5;
+
+
 
 
                 }
@@ -2459,6 +2471,59 @@ fn init(se: &mut Game) {
 
     write!(se.stdout, "{}", termion::cursor::Show).unwrap();
 }
+fn promoting(nc: i32, p: i32) -> bool {
+    match p {
+        6 => {
+            if nc == 8 {
+                return true
+            }
+        }
+        12 => {
+            if nc == 0 {
+                return true
+            }
+        }
+        _ => {}
+    }
+
+    return false
+}
+
+fn promoting_screen(se: &mut Game) {
+    let mut promo_screen = [
+        "╔═══════════════════════════════════════╗",
+        "║─────────PROMOTE PAWN──────────────────║",
+        "║───────────────────────────────────────║",
+        "║    ♜         ♞         ♝         ♛    ║",
+        "║    |         |         |         |    ║",
+        "║    R         N         B         Q    ║",
+        "╚═══════════════════════════════════════╝"
+    ];
+
+    write!(se.stdout,
+           "{}{}{}",
+           termion::clear::All,
+           termion::cursor::Goto(1, 1),
+           termion::cursor::Hide)
+        .unwrap();
+
+
+    let mut array_counter = 20;
+
+    se.stdout.flush().unwrap();
+
+
+    for x in promo_screen {
+        write!(se.stdout, "{}{}{}",
+               termion::cursor::Goto(20, array_counter),
+               x,
+               termion::cursor::Hide).unwrap();
+        se.stdout.flush().unwrap();
+        array_counter += 1
+
+    }
+}
+
 fn main(){
 
     let stdin = stdin();
@@ -2467,8 +2532,8 @@ fn main(){
     let mut game: Game = Game {
         stdout: stdout,
         stdin: stdin,
-        board: [[1, 2, 3, 4, 5, 3, 2, 1],
-                [6, 6, 6, 6, 6, 6, 6, 6],
+        board: [[0, 2, 3, 4, 5, 3, 2, 0],
+                [12, 6, 6, 6, 6, 6, 6, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
