@@ -101,6 +101,8 @@ struct Game {
     mode: Modes,
     game_started: bool,
     mode_screen: bool,
+    last_en_passant: Vec<i32>,
+    move_count: f64,
 }
 
 fn draw(x: i32, y: i32, s: String) {
@@ -240,6 +242,7 @@ fn display_board(se: &mut Game) {
            "{}{}",
            termion::cursor::Goto(1, 1),
            termion::color::Fg(termion::color::White))
+           //termion::clear::All)
         .unwrap();
 
     //coordinates
@@ -790,7 +793,16 @@ fn move_piece(se: &mut Game) {
                     // so there is no check on the black king as no check on the white king
 
                     se.game_state = GameState::Playing;
-                    se.move_info = MoveInfo::Valid
+                    se.move_info = MoveInfo::Valid;
+
+                    if old_board[og_r as usize][og_c as usize] == 6 && n_r - 2 == og_r {
+                        se.last_en_passant = vec![n_r as i32 - 1, n_c as i32];
+                    } else if old_board[og_r as usize][og_c as usize] == 12 && n_r + 2 == og_r {
+                        se.last_en_passant = vec![n_r as i32 + 1, n_c as i32];
+                    }
+
+                    se.move_count += 0.5;
+
                 }
 
                 if se.round == Round::White {
@@ -862,11 +874,7 @@ fn move_piece(se: &mut Game) {
                     }
                 }
 
-                if check(se, 5) != true && check(se, 11) != true {
-                    // so there is no check on the black king as no check on the white king
-
-                    se.game_state = GameState::Playing
-                } else if check(se, 5) {
+                if check(se, 5) {
                     if mate(se, 5) {
                         se.game_state = GameState::WhiteWon;
                     }
@@ -949,7 +957,17 @@ fn move_piece(se: &mut Game) {
                     // so there is no check on the black king as no check on the white king
 
                     se.game_state = GameState::Playing;
-                    se.move_info = MoveInfo::Valid
+                    se.move_info = MoveInfo::Valid;
+
+                    if old_board[og_r as usize][og_c as usize] == 6 && n_r - 2 == og_r {
+                        se.last_en_passant = vec![n_r as i32 - 1, n_c as i32];
+                    } else if old_board[og_r as usize][og_c as usize] == 12 && n_r + 2 == og_r {
+                        se.last_en_passant = vec![n_r as i32 + 1, n_c as i32];
+                    }
+
+                    se.move_count += 0.5;
+
+
                 }
 
                 if se.round == Round::White {
@@ -1021,11 +1039,7 @@ fn move_piece(se: &mut Game) {
                     }
                 }
 
-                if check(se, 5) != true && check(se, 11) != true {
-                    // so there is no check on the black king as no check on the white king
-
-                    se.game_state = GameState::Playing
-                } else if check(se, 5) {
+                if check(se, 5) {
                     if mate(se, 5) {
                         se.game_state = GameState::WhiteWon;
                     }
@@ -1057,6 +1071,46 @@ fn move_piece(se: &mut Game) {
                         .unwrap();
 
                 }
+
+                display_board(se);
+
+                if check(se, 5) == false && check(se, 11) == false {
+                    // AI
+
+                    se.round = Round::Black;
+
+                    let fen_board = board_to_fen(se);
+                    let best_move = get_best_move(fen_board.clone());
+
+                    draw(10, 10, fen_board.clone());
+                    draw(10, 11, best_move.clone());
+
+                    let m1 = best_move.chars().nth(0).unwrap().to_string() + &best_move.chars().nth(1).unwrap().to_string() as &str;
+                    let m2 = best_move.chars().nth(2).unwrap().to_string() + &best_move.chars().nth(3).unwrap().to_string() as &str;
+
+
+                    let x = fen_cmd_to_bo_cmd(m1.to_string());
+                    let y = fen_cmd_to_bo_cmd(m2.to_string());
+
+
+                    let og_char = se.board[x[0] as usize][x[1] as usize];
+
+                    se.board[y[0] as usize][y[1] as usize] = og_char;
+                    se.board[x[0] as usize][x[1] as usize] = 0;
+
+                    se.move_count += 0.5;
+
+                    write!(se.stdout,
+                            "{}{}",
+                            termion::cursor::Goto(1, 1),
+                            termion::clear::All)
+                        .unwrap();
+
+
+                    se.round = Round::White;
+
+                }
+
             }
 
         } else {
@@ -1986,23 +2040,22 @@ fn mate(se: &mut Game, k: i32) -> bool {
 
     return true
 }
-fn get_best_move(fen_board: &str) -> &str {
-    let mut best_move: &str = "0";
-    let options = ScriptOptions::new();
+fn get_best_move(fen_board: String) -> String {
+    let mut best_move = "null".to_string();
 
+    let options = ScriptOptions::new();
     let args = vec![];
-    let bo = fen_board;
+
 
     let cmd = format!(r#"
-         startpos={}
          stockfish << EOF
          uci
-         position $startpos
+         position {}
          go movetime 6000
-         ucinewgame EOF
-         "#, bo);
+         ucinewgame
+         EOF
+         "#, fen_board);
 
-    // run the script and get the script execution output
     let (code, output, error) = run_script::run(
         &cmd as &str,
         &args,
@@ -2010,10 +2063,322 @@ fn get_best_move(fen_board: &str) -> &str {
     )
         .unwrap();
 
-    println!("{}", output);
+    let mut best_moves_line = "".to_string();
+    let bm = "bestmove";
+    let op_max = output.len();
+
+    if output.contains(bm) {
+        best_move = "".to_string();
+        let bm_index = output.find(bm).unwrap();
+        for index in bm_index..op_max {
+            best_moves_line += &output.chars().nth(index).unwrap().to_string();
+        }
+
+        for b in 9..14 {
+            best_move += &best_moves_line.chars().nth(b).unwrap().to_string();
+        }
+
+    }
+
+
 
 
     return best_move
+}
+fn board_to_fen(se: &mut Game) -> String {
+
+    let mut fen = "fen ".to_string();
+    let mut zeros_counter = 0;
+
+    for row in 0..8 {
+        if zeros_counter > 0 {
+            fen += &zeros_counter.to_string() as &str;
+        }
+        zeros_counter = 0;
+        if row != 0 {
+            fen += "/";
+        }
+        for col in 0..8 {
+            match se.board[row][col] {
+                1 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "r";
+                }
+                2 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "n";
+                }
+                3 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "b";
+                }
+                4 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "q";
+                }
+                5 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "k";
+                }
+                6 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "p";
+                }
+                7 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "R";
+                }
+                8 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "N";
+                }
+                9 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "B";
+                }
+                10 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "Q";
+                }
+                11 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "K";
+                }
+                12 => {
+                    if zeros_counter != 0 {
+                        fen += &zeros_counter.to_string() as &str;
+                        zeros_counter = 0;
+                    }
+                    fen += "P";
+                }
+                0 => {
+                    zeros_counter += 1;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fen += " ";
+
+    match se.round {
+        Round::White => {
+            fen += "w";
+        }
+        Round::Black => {
+            fen += "b";
+        }
+        _ => {}
+    }
+
+    fen += " ";
+
+    if se.wk_moved == false {
+
+        if se.rwr_moved == false {
+            fen += "K";
+        }
+
+        if se.lwr_moved == false {
+            fen += "Q";
+        }
+
+    }
+
+    if se.bk_moved == false {
+
+        if se.rbr_moved == false {
+            fen += "k";
+        }
+
+        if se.lbr_moved == false {
+            fen += "q";
+        }
+
+    }
+
+    if se.wk_moved && se.bk_moved && se.lwr_moved && se.rwr_moved && se.lbr_moved && se.rbr_moved {
+        fen += "-"
+    }
+
+    fen += " ";
+
+    if se.last_en_passant != vec![] {
+        let pos = &se.last_en_passant;
+        let last_en_passant_square = bo_cmd_to_fen_cmd(pos);
+        fen += &last_en_passant_square as &str;
+    } else if se.last_en_passant == vec![] {
+        fen += "-"
+    }
+
+    fen += " ";
+
+    fen += "-";
+
+    fen += " ";
+
+    fen += &se.move_count.trunc().to_string() as &str;
+
+
+
+    return fen
+}
+fn bo_cmd_to_fen_cmd(c: &Vec<i32>) -> String {
+    let mut cmd: String = "".to_string();
+
+    // 5 0
+
+    match c[1]{
+        0 => {
+            cmd += "a";
+        }
+        1 => {
+            cmd += "b";
+        }
+        2 => {
+            cmd += "c";
+        }
+        3 => {
+            cmd += "d";
+        }
+        4 => {
+            cmd += "e";
+        }
+        5 => {
+            cmd += "f";
+        }
+        6 => {
+            cmd += "g";
+        }
+        7 => {
+            cmd += "h";
+        }
+        _ => {}
+    }
+
+    match c[0] {
+        0 => {
+            cmd += "8";
+        }
+        1 => {
+            cmd += "7";
+        }
+        2 => {
+            cmd += "6";
+        }
+        3 => {
+            cmd += "5";
+        }
+        4 => {
+            cmd += "4";
+        }
+        5 => {
+            cmd += "3";
+        }
+        6 => {
+            cmd += "2";
+        }
+        7 => {
+            cmd += "1";
+        }
+        _ => {}
+    }
+
+    return cmd
+}
+fn fen_cmd_to_bo_cmd(c: String) -> Vec<i32> {
+    let mut cmd: Vec<i32> = vec![];
+
+    match c.chars().nth(1).unwrap() {
+        '8' => {
+            cmd.push(0);
+        }
+        '7' => {
+            cmd.push(1);
+        }
+        '6' => {
+            cmd.push(2);
+        }
+        '5' => {
+            cmd.push(3);
+        }
+        '4' => {
+            cmd.push(4);
+        }
+        '3' => {
+            cmd.push(5);
+        }
+        '2' => {
+            cmd.push(6);
+        }
+        '1' => {
+            cmd.push(7);
+        }
+        _ => {}
+    }
+
+    match c.chars().nth(0).unwrap() {
+        'a' => {
+            cmd.push(0);
+        }
+        'b' => {
+            cmd.push(1);
+        }
+        'c' => {
+            cmd.push(2);
+        }
+        'd' => {
+            cmd.push(3);
+        }
+        'e' => {
+            cmd.push(4);
+        }
+        'f' => {
+            cmd.push(5);
+        }
+        'g' => {
+            cmd.push(6);
+        }
+        'h' => {
+            cmd.push(7);
+        }
+        _ => {}
+    }
+
+    return cmd
 }
 fn init(se: &mut Game) {
 
@@ -2094,7 +2459,7 @@ fn init(se: &mut Game) {
 
     write!(se.stdout, "{}", termion::cursor::Show).unwrap();
 }
-fn main() {
+fn main(){
 
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
@@ -2125,12 +2490,18 @@ fn main() {
         mode: Modes::PvP,
         game_started: false,
         mode_screen: false,
+        last_en_passant: vec![],
+        move_count: 1.0,
     };
 
 
-    get_best_move("'fen rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2'");
-    init(&mut game)
+   // let f = get_best_move("'fen rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2'".to_string());
+    init(&mut game);
+    //println!("{}", f);
+   // let fen = board_to_fen(&mut game);
+  //  println!("{}", fen);
 }
 
-//TODO: AI
+//TODO: AI: Captures, Rochades, Promotes
 //TODO: Draws/Stalemates
+//TODO: Promoting
