@@ -804,12 +804,44 @@ fn move_piece(se: &mut Game) {
                     se.move_count += 0.5;
 
                     if old_board[og_r as usize][og_c as usize] == 6 {
-                        if promoting(n_c as i32, 6) {
-                            promoting_screen(se);
+                        if n_r == 7 {
+                            let mut pie = promoting_screen(se);
+                            match pie {
+                                1 => {
+                                    pie = 1;
+                                }
+                                2 => {
+                                    pie = 2;
+                                }
+                                3 => {
+                                    pie = 3;
+                                }
+                                4 => {
+                                    pie = 4;
+                                }
+                                _ => {}
+                            }
+                            se.board[n_r as usize][n_c as usize] = pie as usize;
                         }
                     } else if old_board[og_r as usize][og_c as usize] == 12 {
-                        if promoting(n_c as i32, 12) {
-                            promoting_screen(se);
+                        if n_r == 0 {
+                            let mut pie = promoting_screen(se);
+                            match pie {
+                                1 => {
+                                    pie = 7;
+                                }
+                                2 => {
+                                    pie = 8;
+                                }
+                                3 => {
+                                    pie = 9;
+                                }
+                                4 => {
+                                    pie = 10;
+                                }
+                                _ => {}
+                            }
+                            se.board[n_r as usize][n_c as usize] = pie as usize;
                         }
                     }
 
@@ -1094,8 +1126,12 @@ fn move_piece(se: &mut Game) {
                     let fen_board = board_to_fen(se);
                     let best_move = get_best_move(fen_board.clone());
 
-                    draw(10, 10, fen_board.clone());
-                    draw(10, 11, best_move.clone());
+                    draw(17, 10, fen_board.clone());
+                    draw(18, 11, best_move.clone());
+
+
+                    println!("{}", fen_board);
+                    println!("{}", best_move);
 
                     let m1 = best_move.chars().nth(0).unwrap().to_string() + &best_move.chars().nth(1).unwrap().to_string() as &str;
                     let m2 = best_move.chars().nth(2).unwrap().to_string() + &best_move.chars().nth(3).unwrap().to_string() as &str;
@@ -1104,6 +1140,16 @@ fn move_piece(se: &mut Game) {
                     let x = fen_cmd_to_bo_cmd(m1.to_string());
                     let y = fen_cmd_to_bo_cmd(m2.to_string());
 
+
+                    if se.debug {
+                        write!(se.stdout,
+                                "{}{:?}{}{:?}",
+                                termion::cursor::Goto(15, 40),
+                                x,
+                                termion::cursor::Goto(16, 40),
+                                y)
+                            .unwrap()
+                    }
 
                     let og_char = se.board[x[0] as usize][x[1] as usize];
 
@@ -2053,7 +2099,7 @@ fn mate(se: &mut Game, k: i32) -> bool {
     return true
 }
 fn get_best_move(fen_board: String) -> String {
-    let mut best_move = "null".to_string();
+    let mut best_move = "".to_string();
 
     let options = ScriptOptions::new();
     let args = vec![];
@@ -2068,6 +2114,8 @@ fn get_best_move(fen_board: String) -> String {
          EOF
          "#, fen_board);
 
+    // ERROR: get_fen_bo GL!
+
     let (code, output, error) = run_script::run(
         &cmd as &str,
         &args,
@@ -2078,6 +2126,9 @@ fn get_best_move(fen_board: String) -> String {
     let mut best_moves_line = "".to_string();
     let bm = "bestmove";
     let op_max = output.len();
+
+
+    //println!("{:?}", output);
 
     if output.contains(bm) {
         best_move = "".to_string();
@@ -2471,25 +2522,14 @@ fn init(se: &mut Game) {
 
     write!(se.stdout, "{}", termion::cursor::Show).unwrap();
 }
-fn promoting(nc: i32, p: i32) -> bool {
-    match p {
-        6 => {
-            if nc == 8 {
-                return true
-            }
-        }
-        12 => {
-            if nc == 0 {
-                return true
-            }
-        }
-        _ => {}
-    }
 
-    return false
-}
 
-fn promoting_screen(se: &mut Game) {
+fn promoting_screen(se: &mut Game) -> i32 {
+    let stdin = stdin();
+    let mut stdout = stdout().into_raw_mode().unwrap();
+
+    let mut piece = -1;
+
     let mut promo_screen = [
         "╔═══════════════════════════════════════╗",
         "║─────────PROMOTE PAWN──────────────────║",
@@ -2520,8 +2560,47 @@ fn promoting_screen(se: &mut Game) {
                termion::cursor::Hide).unwrap();
         se.stdout.flush().unwrap();
         array_counter += 1
-
     }
+
+    for c in stdin.keys() {
+        write!(se.stdout,
+               "{}{}",
+               termion::cursor::Goto(1, 1),
+               termion::clear::CurrentLine)
+            .unwrap();
+
+        match c.unwrap() {
+            Key::Char('R') | Key::Char('r' )=> {
+                piece = 1;
+                break;
+            },
+            Key::Char('N') | Key::Char('n') => {
+                piece = 2;
+                break;
+            },
+            Key::Char('B') | Key::Char('b') => {
+                piece = 3;
+                break;
+            }
+            Key::Char('Q') | Key::Char('q') => {
+                piece = 4;
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    write!(se.stdout,
+           "{}{}{}",
+           termion::clear::All,
+           termion::cursor::Goto(1, 1),
+           termion::cursor::Hide)
+        .unwrap();
+
+    se.stdout.flush().unwrap();
+
+// HERE
+    return piece
 }
 
 fn main(){
@@ -2532,14 +2611,14 @@ fn main(){
     let mut game: Game = Game {
         stdout: stdout,
         stdin: stdin,
-        board: [[0, 2, 3, 4, 5, 3, 2, 0],
+        board: [[0, 2, 3, 4, 5, 3, 2, 1],
                 [12, 6, 6, 6, 6, 6, 6, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
-                [12, 12, 12, 12, 12, 12, 12, 12],
-                [7, 8, 9, 10, 11, 9, 8, 7]],
+                [0, 12, 12, 12, 12, 12, 12, 6],
+                [7, 8, 9, 10, 11, 9, 8, 0]],
         game_state: GameState::Playing,
         round: Round::White,
         debug: false,
@@ -2559,6 +2638,12 @@ fn main(){
         move_count: 1.0,
     };
 
+    let f = board_to_fen(&mut game);
+    println!("{}", f);
+
+    let b = get_best_move(f);
+    println!("{}", b);
+
 
    // let f = get_best_move("'fen rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2'".to_string());
     init(&mut game);
@@ -2569,4 +2654,3 @@ fn main(){
 
 //TODO: AI: Captures, Rochades, Promotes
 //TODO: Draws/Stalemates
-//TODO: Promoting
