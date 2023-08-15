@@ -689,10 +689,12 @@ fn info_board(se: &mut Game) {
         }
         MoveInfo::BlackCheck => {
             write!(se.stdout,
-                   "{}{}{}",
+                   "{}{}{}{}{}",
                    termion::cursor::Goto(info_board_x as u16 + 13, info_board_y as u16 + 5),
                    termion::color::Fg(termion::color::Red),
-                   "Black King in danger")
+                   "Move doesn't",
+                   termion::cursor::Goto(info_board_x as u16 + 2, info_board_y as u16 + 6),
+                   "protect the black king")
             .unwrap();
 
         }
@@ -769,6 +771,7 @@ fn move_piece(se: &mut Game) {
                         }
                         _ => {}
                     }
+                // White Rochades
                 } else if se.board[og_r as usize][og_c as usize] == 11 && se.board[n_r as usize][n_c as usize] == 7 {
                     match n_c {
                         0 => {
@@ -783,116 +786,120 @@ fn move_piece(se: &mut Game) {
                         }
                         _ => {}
                     }
-
+                // Normal Move
                 } else {
                     se.board[n_r as usize][n_c as usize] = og;
                     se.board[og_r as usize][og_c as usize] = 0;
                 }
 
-                if check(se, 5) != true && check(se, 11) != true {
-                    // so there is no check on the black king as no check on the white king
-
-                    se.game_state = GameState::Playing;
-                    se.move_info = MoveInfo::Valid;
-
-                    if old_board[og_r as usize][og_c as usize] == 6 && n_r - 2 == og_r {
-                        se.last_en_passant = vec![n_r as i32 - 1, n_c as i32];
-                    } else if old_board[og_r as usize][og_c as usize] == 12 && n_r + 2 == og_r {
-                        se.last_en_passant = vec![n_r as i32 + 1, n_c as i32];
-                    }
-
-                    se.move_count += 0.5;
-
-                    if old_board[og_r as usize][og_c as usize] == 6 {
-                        if n_r == 7 {
-                            let mut pie = promoting_screen(se);
-                            match pie {
-                                1 => {
-                                    pie = 1;
-                                }
-                                2 => {
-                                    pie = 2;
-                                }
-                                3 => {
-                                    pie = 3;
-                                }
-                                4 => {
-                                    pie = 4;
-                                }
-                                _ => {}
-                            }
-                            se.board[n_r as usize][n_c as usize] = pie as usize;
-                        }
-                    } else if old_board[og_r as usize][og_c as usize] == 12 {
-                        if n_r == 0 {
-                            let mut pie = promoting_screen(se);
-                            match pie {
-                                1 => {
-                                    pie = 7;
-                                }
-                                2 => {
-                                    pie = 8;
-                                }
-                                3 => {
-                                    pie = 9;
-                                }
-                                4 => {
-                                    pie = 10;
-                                }
-                                _ => {}
-                            }
-                            se.board[n_r as usize][n_c as usize] = pie as usize;
-                        }
-                    }
-
-                }
-
                 if se.round == Round::White {
+                    // Check for white checks
                     if check(se, 11) {
-
-                        se.move_info = MoveInfo::WhiteCheck;
-                        if old_board[og_r as usize][og_c as usize] == 11 && old_board[n_r as usize][n_c as usize] == 7 {
-                            match n_c {
-                                0 => {
-                                    old_board[7][4] = 11;
-                                    old_board[7][0] = 7;
-                                }
-                                7 => {
-                                    old_board[7][4] = 11;
-                                    old_board[7][7] = 7;
-                                    old_board[7][5] = 0;
-                                    old_board[7][6] = 0;
-                                }
-                                _ => {}
-                            }
-                            se.game_state = GameState::Playing;
-                        }
-                        se.round = Round::Black;
                         se.board = old_board;
+                        se.round = Round::Black;
+                        se.move_info = MoveInfo::WhiteCheck;
+                        se.game_state = GameState::Playing;
+                    } else {
+                        se.game_state = GameState::Playing;
+                        se.move_info = MoveInfo::Valid;
+
+                        // Check for black checks and for black mates
+                        if check(se, 5) {
+                            if mate(se, 5) {
+                                se.game_state = GameState::WhiteWon;
+                            } else {
+                                se.game_state = GameState::BlackCheck
+                            }
+                        }
+
+
+                        // En passant protocol
+                        if old_board[og_r as usize][og_c as usize] == 6 && n_r - 2 == og_r {
+                            se.last_en_passant = vec![n_r as i32 - 1, n_c as i32];
+                        } else if old_board[og_r as usize][og_c as usize] == 12 && n_r + 2 == og_r {
+                            se.last_en_passant = vec![n_r as i32 + 1, n_c as i32];
+                        }
+
+                        se.move_count += 0.5;
+
+                        // Promoting
+                        if old_board[og_r as usize][og_c as usize] == 12 {
+                            if n_r == 0 {
+                                let mut pie = promoting_screen(se);
+                                match pie {
+                                    1 => {
+                                        pie = 7;
+                                    }
+                                    2 => {
+                                        pie = 8;
+                                    }
+                                    3 => {
+                                        pie = 9;
+                                    }
+                                    4 => {
+                                        pie = 10;
+                                    }
+                                    _ => {}
+                                }
+                                se.board[n_r as usize][n_c as usize] = pie as usize;
+                            }
+                        }
                     }
                 } else if se.round == Round::Black {
+
+                    // Check for black checks
                     if check(se, 5) {
-                        se.move_info = MoveInfo::BlackCheck;
-                        if old_board[og_r as usize][og_c as usize] == 5 && old_board[n_r as usize][n_c as usize] == 1 {
-                            match n_c {
-                                0 => {
-                                    old_board[0][0] = 1;
-                                    old_board[0][4] = 5;
-                                }
-                                7 => {
-                                    old_board[0][4] = 5;
-                                    old_board[0][7] = 1;
-                                    old_board[0][5] = 0;
-                                    old_board[0][6] = 0;
-                                }
-                                _ => {}
-                            }
-                            se.game_state = GameState::Playing;
-                        }
-                        se.round = Round::White;
                         se.board = old_board;
+                        se.round = Round::White;
+                        se.move_info = MoveInfo::BlackCheck;
+                        se.game_state = GameState::Playing;
+                    } else {
+                        se.game_state = GameState::Playing;
+                        se.move_info = MoveInfo::Valid;
+
+                        // Check for black checks and for black mates
+                        if check(se, 11) {
+                            if mate(se, 11) {
+                                se.game_state = GameState::BlackWon;
+                            } else {
+                                se.game_state = GameState::WhiteCheck
+                            }
+                        }
+
+                        // En passant protocol
+                        if old_board[og_r as usize][og_c as usize] == 6 && n_r - 2 == og_r {
+                            se.last_en_passant = vec![n_r as i32 - 1, n_c as i32];
+                        } else if old_board[og_r as usize][og_c as usize] == 12 && n_r + 2 == og_r {
+                            se.last_en_passant = vec![n_r as i32 + 1, n_c as i32];
+                        }
+
+                        se.move_count += 0.5;
+
+                        // Promoting
+                        if old_board[og_r as usize][og_c as usize] == 6 {
+                            if n_r == 7 {
+                                let mut pie = promoting_screen(se);
+                                match pie {
+                                    1 => {
+                                        pie = 1;
+                                    }
+                                    2 => {
+                                        pie = 2;
+                                    }
+                                    3 => {
+                                        pie = 3;
+                                    }
+                                    4 => {
+                                        pie = 4;
+                                    }
+                                    _ => {}
+                                }
+                                se.board[n_r as usize][n_c as usize] = pie as usize;
+                            }
+                        }
                     }
                 }
+
 
                 if old_board != se.board {
                     match old_board[og_r as usize][og_c as usize] {
@@ -916,23 +923,11 @@ fn move_piece(se: &mut Game) {
                     }
                 }
 
-                if check(se, 5) {
-                    if mate(se, 5) {
-                        se.game_state = GameState::WhiteWon;
-                    }
-                } else if check(se, 11) {
-                        if mate(se, 11) {
-                            se.game_state = GameState::BlackWon;
-                        }
-                }
-
-
                 if se.round == Round::White {
                     se.round = Round::Black
                 } else if se.round == Round::Black {
                     se.round = Round::White
                 }
-
 
                 if se.board != old_board {
                     if se.board[0][0] != 1 {
@@ -955,6 +950,10 @@ fn move_piece(se: &mut Game) {
                         .unwrap();
 
                 }
+
+
+
+                // TODO: Rewrite the whole mechanism so that when it's the white turn it check's for black checks, it checks for white checks in wich case it reverts back to normal and it check if a move that has not triggered a white check is a promotion in wich case it triggers a promotion screen
             } else if se.mode == Modes::AI {
                 let mut old_board = se.board;
                 let og = se.board[og_r as usize][og_c as usize];
@@ -2611,14 +2610,14 @@ fn main(){
     let mut game: Game = Game {
         stdout: stdout,
         stdin: stdin,
-        board: [[0, 2, 3, 4, 5, 3, 2, 1],
-                [12, 6, 6, 6, 6, 6, 6, 0],
+        board: [[1, 0, 0, 0, 5, 0, 0, 1],
+                [0, 6, 6, 6, 6, 6, 6, 6],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 7, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 12, 12, 12, 12, 12, 12, 6],
-                [7, 8, 9, 10, 11, 9, 8, 0]],
+                [7, 0, 0, 0, 11, 0, 0, 7]],
         game_state: GameState::Playing,
         round: Round::White,
         debug: false,
@@ -2654,3 +2653,4 @@ fn main(){
 
 //TODO: AI: Captures, Rochades, Promotes
 //TODO: Draws/Stalemates
+//TODO: Fix long rochade
