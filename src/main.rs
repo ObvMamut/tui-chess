@@ -13,7 +13,6 @@ use std::{io, thread, time};
 use std::ascii::Char;
 use extra::rand::Randomizer;
 use std::io::Read;
-use std::task::ready;
 use std::thread::current;
 use termion::async_stdin;
 use run_script::ScriptOptions;
@@ -764,10 +763,10 @@ fn move_piece(se: &mut Game) {
                             se.board[0][0] = 5;
                         }
                         7 => {
-                            se.board[0][4] = 0;
-                            se.board[0][7] = 0;
-                            se.board[0][5] = 1;
-                            se.board[0][6] = 5;
+                            se.board[0][4] = 1;
+                            se.board[0][7] = 5;
+//                             se.board[0][5] = 1;
+//                             se.board[0][6] = 5;
                         }
                         _ => {}
                     }
@@ -779,10 +778,10 @@ fn move_piece(se: &mut Game) {
                             se.board[7][0] = 11;
                         }
                         7 => {
-                            se.board[7][4] = 0;
-                            se.board[7][7] = 0;
-                            se.board[7][5] = 7;
-                            se.board[7][6] = 11;
+                            se.board[7][4] = 7;
+                            se.board[7][7] = 11;
+//                             se.board[7][5] = 7;
+//                             se.board[7][6] = 11;
                         }
                         _ => {}
                     }
@@ -953,7 +952,7 @@ fn move_piece(se: &mut Game) {
 
 
 
-                // TODO: Rewrite the whole mechanism so that when it's the white turn it check's for black checks, it checks for white checks in wich case it reverts back to normal and it check if a move that has not triggered a white check is a promotion in wich case it triggers a promotion screen
+                // TODO: Rewrite the whole mechanism so that when it's the white turn it check's for black checks, it checks for white checks in wich case it reverts back to normal and it check if a move that has not triggered a white check is a promotion in which case it triggers a promotion screen
             } else if se.mode == Modes::AI {
                 let mut old_board = se.board;
                 let og = se.board[og_r as usize][og_c as usize];
@@ -967,10 +966,10 @@ fn move_piece(se: &mut Game) {
                             se.board[0][0] = 5;
                         }
                         7 => {
-                            se.board[0][4] = 0;
-                            se.board[0][7] = 0;
-                            se.board[0][5] = 1;
-                            se.board[0][6] = 5;
+                            se.board[0][4] = 1;
+                            se.board[0][7] = 5;
+//                             se.board[0][5] = 1;
+//                             se.board[0][6] = 5;
                         }
                         _ => {}
                     }
@@ -981,10 +980,10 @@ fn move_piece(se: &mut Game) {
                             se.board[7][0] = 11;
                         }
                         7 => {
-                            se.board[7][4] = 0;
-                            se.board[7][7] = 0;
-                            se.board[7][5] = 7;
-                            se.board[7][6] = 11;
+                            se.board[7][4] = 7;
+                            se.board[7][7] = 11;
+//                             se.board[7][5] = 7;
+//                             se.board[7][6] = 11;
                         }
                         _ => {}
                     }
@@ -2611,12 +2610,12 @@ fn main(){
         stdout: stdout,
         stdin: stdin,
         board: [[1, 0, 0, 0, 5, 0, 0, 1],
-                [0, 6, 6, 6, 6, 6, 6, 6],
-                [0, 0, 0, 0, 0, 0, 0, 0],
-                [0, 0, 0, 0, 0, 0, 7, 0],
-                [0, 0, 0, 0, 0, 0, 1, 0],
+                [6, 6, 6, 6, 6, 6, 6, 6],
                 [0, 0, 0, 0, 0, 0, 0, 0],
                 [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [12, 12, 12, 12, 12, 12, 12, 12],
                 [7, 0, 0, 0, 11, 0, 0, 7]],
         game_state: GameState::Playing,
         round: Round::White,
