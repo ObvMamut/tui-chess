@@ -2521,7 +2521,6 @@ fn init(se: &mut Game) {
     write!(se.stdout, "{}", termion::cursor::Show).unwrap();
 }
 
-
 fn promoting_screen(se: &mut Game) -> i32 {
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
@@ -2652,4 +2651,4 @@ fn main(){
 
 //TODO: AI: Captures, Rochades, Promotes
 //TODO: Draws/Stalemates
-//TODO: Fix long rochade
+//TODO: Fix long Rochades
