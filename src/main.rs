@@ -131,7 +131,7 @@ fn start_screen(se: &mut Game) {
            termion::clear::All)
         .unwrap();
     se.stdout.flush().unwrap();
-
+2
     let mut array_counter = 20;
 
     for x in graphics::START_SCREEN {
@@ -737,6 +737,7 @@ fn info_board(se: &mut Game) {
 
 
 }
+
 fn move_piece(se: &mut Game) {
 
     draw(23, 14, graphics::BOX_TOP.to_string());
@@ -1119,17 +1120,21 @@ fn move_piece(se: &mut Game) {
                 if check(se, 5) == false && check(se, 11) == false {
                     // AI
 
-                    se.round = Round::Black;
+                    display_board(se);
 
+
+                    se.round = Round::Black;
+                    
+                    
                     let fen_board = board_to_fen(se);
                     let best_move = get_best_move(fen_board.clone());
 
-                    draw(17, 10, fen_board.clone());
-                    draw(18, 11, best_move.clone());
+                    //draw(17, 10, fen_board.clone());
+                    //draw(18, 11, best_move.clone());
 
 
-                    println!("{}", fen_board);
-                    println!("{}", best_move);
+                    //println!("{}", fen_board);
+                    //println!("{}", best_move);
 
                     let m1 = best_move.chars().nth(0).unwrap().to_string() + &best_move.chars().nth(1).unwrap().to_string() as &str;
                     let m2 = best_move.chars().nth(2).unwrap().to_string() + &best_move.chars().nth(3).unwrap().to_string() as &str;
@@ -2520,7 +2525,6 @@ fn init(se: &mut Game) {
 
     write!(se.stdout, "{}", termion::cursor::Show).unwrap();
 }
-
 fn promoting_screen(se: &mut Game) -> i32 {
     let stdin = stdin();
     let mut stdout = stdout().into_raw_mode().unwrap();
@@ -2599,7 +2603,6 @@ fn promoting_screen(se: &mut Game) -> i32 {
 // HERE
     return piece
 }
-
 fn main(){
 
     let stdin = stdin();
